@@ -1,0 +1,33 @@
+# Default values for url-shortener.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 2
+
+image:
+  repository: parinati/url-shortener-app
+  pullPolicy: Always
+  tag: "latest"
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 5000
+
+config:
+  awsRegion: us-east-2
+  dynamodbTable: url-shortener
+
+serviceAccount:
+  create: true
+  name: url-shortener-sa
+  roleArn: arn:aws:iam::352435704376:role/url-shortener-irsa
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+  limits:
+    cpu: 500m
+    memory: 512Mi

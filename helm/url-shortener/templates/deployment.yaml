@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: {{ include "url-shortener.fullname" . }}
+
+spec:
+
+  replicas: {{ .Values.replicaCount }}
+
+  selector:
+    matchLabels:
+      app: {{ include "url-shortener.name" . }}
+
+  template:
+
+    metadata:
+      labels:
+        app: {{ include "url-shortener.name" . }}
+
+    spec:
+
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+
+      containers:
+
+      - name: url-shortener
+
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+        ports:
+
+        - containerPort: {{ .Values.service.targetPort }}
+
+        env:
+
+        - name: AWS_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "url-shortener.fullname" . }}-config
+              key: AWS_REGION
+
+        - name: DYNAMODB_TABLE
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "url-shortener.fullname" . }}-config
+              key: DYNAMODB_TABLE
+
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
