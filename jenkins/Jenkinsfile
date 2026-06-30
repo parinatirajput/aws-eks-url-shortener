@@ -1,0 +1,68 @@
+pipeline {
+
+    agent any
+
+    environment {
+        IMAGE_NAME = "parinati/url-shortener"
+        IMAGE_TAG  = "${BUILD_NUMBER}"
+        HELM_RELEASE = "url-shortener"
+        HELM_CHART = "helm/url-shortener"
+        NAMESPACE = "url-shortener"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} app/'
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+
+                    sh '''
+                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+
+                sh """
+                helm upgrade --install ${HELM_RELEASE} ${HELM_CHART} \
+                --namespace ${NAMESPACE} \
+                --set image.repository=${IMAGE_NAME} \
+                --set image.tag=${IMAGE_TAG}
+                """
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+
+                sh '''
+                kubectl rollout status deployment/url-shortener -n url-shortener
+                '''
+            }
+        }
+
+    }
+
+}
