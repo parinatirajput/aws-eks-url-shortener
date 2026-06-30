@@ -11,7 +11,7 @@ resource "aws_subnet" "public" {
 
     # Required for EKS LoadBalancers
     "kubernetes.io/role/elb"                    = "1"
-    "kubernetes.io/cluster/${var.project_name}" = "shared"
+    "kubernetes.io/cluster/${var.project_name}-cluster" = "shared"
   }
 }
 
