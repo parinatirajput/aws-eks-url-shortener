@@ -6,7 +6,7 @@ variable "aws_region" {
 
 variable "project_name" {
 
-  default = "url-shorterner"
+  default = "url-shortener"
 
 }
 
