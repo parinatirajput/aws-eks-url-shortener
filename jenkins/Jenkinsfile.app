@@ -29,38 +29,6 @@ pipeline {
             }
         }
 
-    stage('Check Application Changes') {
-    steps {
-        script {
-
-            def changedFiles = sh(
-                script: 'git diff --name-only HEAD~1 HEAD',
-                returnStdout: true
-            ).trim()
-
-            echo "Changed files:\n${changedFiles}"
-
-            def appChanged = false
-
-            changedFiles.split('\n').each { file ->
-                if (file.startsWith('app/') ||
-                    file.startsWith('helm/') ||
-                    file.startsWith('kubernetes/') ||
-                    file == 'Dockerfile') {
-
-                    appChanged = true
-                }
-            }
-
-            if (!appChanged) {
-                currentBuild.result = 'NOT_BUILT'
-                error('No application changes detected. Skipping Application Pipeline.')
-            }
-
-            echo "Application changes found. Continuing..."
-        }
-    }
-}
         stage('Build Docker Image') {
             steps {
                 sh '''
