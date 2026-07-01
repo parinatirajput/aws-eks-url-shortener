@@ -79,7 +79,6 @@ stage('Check Infrastructure Changes') {
 
         stage('Terraform Apply') {
             steps {
-                input message: 'Apply Terraform Changes?', ok: 'Deploy'
 
                 dir('terraform') {
                     sh 'terraform apply -auto-approve tfplan'
