@@ -1,0 +1,123 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION = 'us-east-2'
+        CLUSTER_NAME = 'url-shortener-cluster'
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+stage('Check Infrastructure Changes') {
+    steps {
+        script {
+
+            def changedFiles = sh(
+                script: 'git diff --name-only HEAD~1 HEAD',
+                returnStdout: true
+            ).trim()
+
+            echo "Changed files:\n${changedFiles}"
+
+            def infraChanged = false
+
+            changedFiles.split('\n').each { file ->
+                if (file.startsWith('terraform/')) {
+                    infraChanged = true
+                }
+            }
+
+            if (!infraChanged) {
+                currentBuild.result = 'NOT_BUILT'
+                error('No Terraform changes detected. Skipping Infrastructure Pipeline.')
+            }
+
+            echo "Terraform changes found. Continuing..."
+        }
+    }
+}
+        stage('Terraform Init') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform init'
+                }
+            }
+        }
+
+        stage('Terraform Format Check') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform fmt -check'
+                }
+            }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform validate'
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                dir('terraform') {
+                    sh 'terraform plan -out=tfplan'
+                }
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                input message: 'Apply Terraform Changes?', ok: 'Deploy'
+
+                dir('terraform') {
+                    sh 'terraform apply -auto-approve tfplan'
+                }
+            }
+        }
+
+        stage('Configure kubectl') {
+            steps {
+                sh '''
+                aws eks update-kubeconfig \
+                  --region ${AWS_REGION} \
+                  --name ${CLUSTER_NAME}
+                '''
+            }
+        }
+
+        stage('Verify Cluster') {
+            steps {
+                sh '''
+                kubectl get nodes
+                kubectl get ns
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Infrastructure deployment completed successfully.'
+        }
+
+        failure {
+            echo 'Infrastructure deployment failed.'
+        }
+
+        always {
+            cleanWs()
+        }
+    }
+}
